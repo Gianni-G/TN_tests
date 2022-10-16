@@ -1,2 +1,2 @@
-# TN_tests
+# TN tests
 Test on tensor networks applied to natural language
