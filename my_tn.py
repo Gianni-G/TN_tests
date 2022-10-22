@@ -13,10 +13,16 @@ class MPS():
         tensor,
         elements = None,
         bond_size = 4,
-        method = "compress", # "svd"
+        method = "truncate", # "svd", "full"
+        compress = False, # only relevant if method == "full"
         ):
-        self.order = tensor.ndim
-        self.e_len = tensor.shape[0]
+
+        if method == "from_mps":
+            self.order = tensor.L
+            self.e_len = tensor.ind_sizes()["k0"]
+        else:
+            self.order = tensor.ndim
+            self.e_len = tensor.shape[0]
 
         if elements != None:
             assert len(elements) == self.e_len, "The number of elements does not agree with the tensor dimensions"
@@ -27,11 +33,18 @@ class MPS():
         
 
         self.method = method
-        if method == "compress":
+
+        if method == "from_mps":
+            self.TN = tensor
+
+        if method == "truncate":
+            self.TN = qtn.tensor_1d.MatrixProductState.from_dense(tensor,[self.e_len]*self.order, max_bond=bond_size)
+
+        elif method == "full":
             self.TN = qtn.tensor_1d.MatrixProductState.from_dense(tensor,[self.e_len]*self.order)
-            for i in range(self.order-1):
-                qtn.tensor_compress_bond(self.TN.tensors[i], self.TN.tensors[i+1], max_bond=bond_size, absorb='both')
-            self.TN.add_tag('MPS')
+            if compress:
+                for i in range(self.order-1):
+                    qtn.tensor_compress_bond(self.TN.tensors[i], self.TN.tensors[i+1], max_bond=bond_size, absorb='both')
 
         elif method == "svd":
             M_T = qtn.Tensor(M, inds=[f"k{i}" for i in range(self.order)],tags='M')
@@ -47,14 +60,31 @@ class MPS():
                 self.TN.split_tensor(
                     tags= f"I{i}",
                     left_inds=([f"{i-1}-{i}",f"k{i}"]),
-                    right_inds = [f"k{j}" for j in range(i+1,order)],
+                    right_inds = [f"k{j}" for j in range(i+1,self.order)],
                     max_bond=bond_size,
                     ltags=f"I{i}",
                     rtags=f"I{i+1}",
                     bond_ind=f"{i}-{i+1}",
                     )
-            self.TN.add_tag("MPS")
+
+        self.TN.add_tag("MPS")
         self.loaded = False
+
+    def from_mps(self,mps,elements=None):
+        self.order = mps.L
+        self.e_len = mps.ind_sizes()["k0"]
+
+        if elements != None:
+            assert len(elements) == self.e_len, "The number of elements does not agree with the tensor dimensions"
+            self.elements = elements
+        else:
+            self.elements = [str(i) for i in range(self.e_len)]
+        self.elements_dict = {k:i for i,k in enumerate(self.elements)}
+        
+        self.TN = mps
+        self.TN.add_tag('MPS')
+        self.loaded = False
+
 
     def load(self,expression):
 

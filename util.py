@@ -217,8 +217,9 @@ def pmi(
     sum_over_terms = np.array(matrix.sum(axis=0)).flatten()
 
     # smoothing
-    sum_over_terms_alpha = sum_over_terms**alpha
-    nca_denom = np.sum(sum_over_terms_alpha)
+    if type_pmi[0]=="s":
+        sum_over_terms_alpha = sum_over_terms**alpha
+        nca_denom = np.sum(sum_over_terms_alpha)
 
     for (tok_terms, tok_context), sg_count in matrix_items.items():
         # here we have the following correspondance with Levy, Goldberg, Dagan
@@ -345,7 +346,9 @@ def build_pmi_matrix(
 # Hierarchical Matrix
 
 def hierarchical_matrix(matrix, elements_x=None, elements_y=None, method="ward",symetric=False,):
-
+    '''
+    methods: ["single", "complete", "average", "weighted", "centroid", "median", "ward"]
+    '''
     if elements_x==None:
         elements_x = [str(i) for i in range(matrix.shape[0])]
 
